@@ -18,7 +18,26 @@ function loadLeafletLibrary() {
 }
 
 (function() {
-    // --- ACCESSIBILITY & UTILS ---
+    // --- HELPER DUPLIKAT (Perlu ada jika dipanggil local scope, tapi untuk Header pakai yg internal) ---
+    // Kita buat versi local scope untuk keperluan lain selain header (misal avatar user)
+    function processProfileImage(url, userName) {
+        if (!url || url.trim() === "" || url === "null") {
+            return `https://ui-avatars.com/api/?name=${encodeURIComponent(userName||'User')}&background=3b82f6&color=fff&bold=true&size=128`
+        }
+        if (url.startsWith('data:image') || url.includes('wsrv.nl') || url.includes('ui-avatars.com')) return url;
+        let fileId = null;
+        const match1 = url.match(/\/file\/d\/([^\/]+)/);
+        if (match1) fileId = match1[1];
+        else {
+            const match2 = url.match(/[?&]id=([^&]+)/);
+            if (match2) fileId = match2[1]
+        }
+        if (!fileId && !url.includes('/') && url.length > 20) fileId = url;
+        if (fileId) return `https://wsrv.nl/?url=https://drive.google.com/uc?id=${fileId}&w=90&h=90&fit=cover&a=center&output=webp&q=80`;
+        if (url.startsWith('http')) return `https://wsrv.nl/?url=${encodeURIComponent(url)}&w=90&h=90&fit=cover&output=webp`;
+        return url
+    }
+
     function fixBloggerAccessibility() {
         const images = document.querySelectorAll('.post-body img');
         const pageTitle = document.title || "Gambar Dokumentasi";
@@ -42,72 +61,10 @@ function loadLeafletLibrary() {
         })
     }
 
-    function processProfileImage(url, userName) {
-        if (!url || url.trim() === "" || url === "null") {
-            return `https://ui-avatars.com/api/?name=${encodeURIComponent(userName||'User')}&background=3b82f6&color=fff&bold=true&size=128`
-        }
-        if (url.startsWith('data:image') || url.includes('wsrv.nl') || url.includes('ui-avatars.com')) return url;
-        let fileId = null;
-        const match1 = url.match(/\/file\/d\/([^\/]+)/);
-        if (match1) fileId = match1[1];
-        else {
-            const match2 = url.match(/[?&]id=([^&]+)/);
-            if (match2) fileId = match2[1]
-        }
-        if (!fileId && !url.includes('/') && url.length > 20) fileId = url;
-        if (fileId) return `https://wsrv.nl/?url=https://drive.google.com/uc?id=${fileId}&w=90&h=90&fit=cover&a=center&output=webp&q=80`;
-        if (url.startsWith('http')) return `https://wsrv.nl/?url=${encodeURIComponent(url)}&w=90&h=90&fit=cover&output=webp`;
-        return url
-    }
-
-    // --- HEADER RENDERER ---
-    const getHeaderLogoUrl = (url) => { return processProfileImage(url, 'Logo') };
-    
-    window.renderGuestHeader = function(data) {
-        const titleEl = document.getElementById('header-nama-desa');
-        const addrEl = document.getElementById('header-alamat-desa');
-        const imgEl = document.getElementById('header-logo-img');
-        const fallbackEl = document.getElementById('header-logo-fallback');
-        const landingTitleEl = document.getElementById('landing-nama-desa');
-
-        if (data.nama_desa || data.nama) {
-            const rawNama = data.nama_desa || data.nama || "Desa Songgaja";
-            const fixedNama = "Desa " + rawNama.replace('Desa ', '');
-            if (titleEl) { titleEl.textContent = fixedNama; titleEl.classList.remove('opacity-0'); }
-            if (landingTitleEl) landingTitleEl.textContent = fixedNama;
-        }
-
-        if (addrEl) {
-            const kec = data.nama_kecamatan || "-";
-            const kab = data.nama_kabupaten || "-";
-            const prov = data.nama_propinsi || "-";
-            addrEl.textContent = `Kec. ${kec}, Kab. ${kab}, Prov. ${prov}`;
-            addrEl.classList.remove('opacity-0');
-        }
-
-        const logoUrl = data.logo || data.logo_desa;
-        if (logoUrl && imgEl) {
-            const newSrc = getHeaderLogoUrl(logoUrl);
-            if (imgEl.src !== newSrc) {
-                imgEl.src = newSrc;
-                if (imgEl.complete && imgEl.naturalHeight !== 0) {
-                      imgEl.classList.remove('hidden');
-                      if (fallbackEl) fallbackEl.classList.add('hidden');
-                } else {
-                      imgEl.onload = () => {
-                         imgEl.classList.remove('hidden');
-                         if (fallbackEl) fallbackEl.classList.add('hidden');
-                      }
-                }
-            } else {
-                imgEl.classList.remove('hidden');
-                if (fallbackEl) fallbackEl.classList.add('hidden');
-            }
-        } else {
-            if (imgEl) imgEl.classList.add('hidden');
-            if (fallbackEl) fallbackEl.classList.remove('hidden');
-        }
-
+    // --- MAP RENDERER (Bagian Header hanya memanggil ini jika perlu) ---
+    // Note: renderGuestHeader utama ada di Internal script untuk anti-blink
+    // Disini kita hanya handle logika Map nya saja jika dipanggil ulang
+    const setupMapLogic = function() {
         const mapContainer = document.getElementById('homepage-map-osm');
         if (mapContainer && !mapContainer.dataset.rendered) {
             const observer = new IntersectionObserver((entries, obs) => {
@@ -130,7 +87,7 @@ function loadLeafletLibrary() {
             }, { rootMargin: "200px" });
             observer.observe(mapContainer);
         }
-    };
+    }
 
     // --- AUTH & HEADER STATE ---
     function updateHeaderInfo() {
@@ -183,34 +140,6 @@ function loadLeafletLibrary() {
         const containerUser = document.getElementById('nav-user-container');
         if (containerGuest) containerGuest.classList.remove('hidden');
         if (containerUser) containerUser.classList.add('hidden');
-    }
-    
-    window.handleGuestLogout = function() {
-        Swal.fire({ title: "Keluar?", text: "Akhiri sesi login?", icon: "question", showCancelButton: !0, confirmButtonColor: "#d33", confirmButtonText: "Ya, Keluar" }).then(async e => {
-            if (e.isConfirmed) {
-                Swal.fire({ title: "Proses keluar...", didOpen: () => Swal.showLoading() });
-                try { "function" == typeof window.apiCall && await apiCall({ action: "logout" }) } catch (e) {}
-                localStorage.removeItem("access_token"); localStorage.removeItem("refresh_token");
-                localStorage.removeItem("CLIENT_SIDE_NOTIF_CACHE"); localStorage.removeItem("CACHE_KAMUS_REFERENSI");
-                sessionStorage.clear(); location.replace("/p/login.html");
-            }
-        })
-    };
-
-    function updateGuestMenuState() {
-        const currentPath = window.location.pathname;
-        const desktopLinks = document.querySelectorAll('#guest-header nav > a');
-        desktopLinks.forEach(link => {
-            const href = link.getAttribute('href');
-            const isActive = (href === '/' && (currentPath === '/' || currentPath === '/index.html')) || (href === currentPath);
-            if (isActive) { link.classList.remove('text-gray-600'); link.classList.add('text-blue-600', 'bg-blue-50', 'font-bold', 'shadow-sm') } else { link.classList.add('text-gray-600'); link.classList.remove('text-blue-600', 'bg-blue-50', 'font-bold', 'shadow-sm') }
-        });
-        const mobileLinks = document.querySelectorAll('#mobile-menu-panel a');
-        mobileLinks.forEach(link => {
-            const href = link.getAttribute('href');
-            const isActive = (href === '/' && (currentPath === '/' || currentPath === '/index.html')) || (href === currentPath);
-            if (isActive) { link.classList.remove('text-gray-700'); link.classList.add('text-blue-600', 'bg-blue-50', 'font-bold'); const icon = link.querySelector('i'); if (icon) { icon.classList.remove('text-gray-400'); icon.classList.add('text-blue-600') } } else { link.classList.add('text-gray-700'); link.classList.remove('text-blue-600', 'bg-blue-50', 'font-bold'); const icon = link.querySelector('i'); if (icon) { icon.classList.add('text-gray-400'); icon.classList.remove('text-blue-600') } }
-        })
     }
     
     // --- HOME LAYOUT & NEWS ---
@@ -274,15 +203,12 @@ function loadLeafletLibrary() {
             entries.forEach(entry => {
                 const title = entry.title.$t;
                 const safeTitle = title.replace(/"/g, '"');
-                // Ambil Link
                 let link = "#";
                 const linkObj = entry.link.find(l => l.rel === 'alternate');
                 if(linkObj) link = linkObj.href;
 
                 const date = new Date(entry.published.$t).toLocaleDateString('id-ID', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
+                    year: 'numeric', month: 'long', day: 'numeric'
                 });
                 let img = 'https://placehold.co/600x400?text=No+Image'; 
                 
@@ -324,7 +250,6 @@ function loadLeafletLibrary() {
             });
             
             container.innerHTML = html;
-            
             if (typeof attachEvents === 'function') attachEvents();
             if (typeof fixBloggerAccessibility === 'function') fixBloggerAccessibility();
 
@@ -334,21 +259,24 @@ function loadLeafletLibrary() {
         }
     };
     
-    // --- FETCH VILLAGE PROFILE ---
+    // --- FETCH VILLAGE PROFILE (UPDATE) ---
     async function fetchVillageProfilePublic() {
-        const cached = localStorage.getItem('CACHE_ID_DESA');
-        if (cached) { try { renderGuestHeader(JSON.parse(cached)) } catch (e) {} }
+        // Cek Cache (Meski sudah dirender di internal, kita perlu update jika ada data baru)
         try {
             const res = await apiCall({ action: "get_identitas_desa" });
-            if (res.status || res.success) { const finalData = res.data || res; renderGuestHeader(finalData); localStorage.setItem('CACHE_ID_DESA', JSON.stringify(finalData)) }
+            if (res.status || res.success) { 
+                const finalData = res.data || res; 
+                // Panggil fungsi global yang ada di internal script
+                if (window.renderGuestHeader) window.renderGuestHeader(finalData); 
+                localStorage.setItem('CACHE_ID_DESA', JSON.stringify(finalData));
+                setupMapLogic(); // Init map jika koordinat ada
+            }
         } catch (e) { console.error("Gagal load profil desa:", e) }
     }
 
-    window.toggleGuestProfile = function(e) { e.stopPropagation(); const menu = document.getElementById('guest-nav-dropdown'); const arrow = document.getElementById('guest-nav-arrow'); if (menu) { menu.classList.toggle('show'); if (arrow) arrow.style.transform = menu.classList.contains('show') ? 'rotate(180deg)' : 'rotate(0deg)' } };
-    document.addEventListener('click', function(e) { const menu = document.getElementById('guest-nav-dropdown'); const btn = document.getElementById('nav-user-container'); if (menu && menu.classList.contains('show') && btn && !btn.contains(e.target)) { menu.classList.remove('show'); const arrow = document.getElementById('guest-nav-arrow'); if (arrow) arrow.style.transform = 'rotate(0deg)' } });
-window.initRelatedPosts = function() {
+    // --- RELATED POSTS ---
+    window.initRelatedPosts = function() {
         if (window.relatedTimer) clearTimeout(window.relatedTimer);
-
         const bridge = document.getElementById("related-data-bridge");
         const wrapper = document.getElementById("related-posts-wrapper");
         const container = document.getElementById("related-posts-grid");
@@ -401,7 +329,6 @@ window.initRelatedPosts = function() {
                 const title = post.title.$t;
                 const link = post.link.find(l => l.rel === 'alternate').href;
                 const author = (post.author && post.author.length > 0) ? post.author[0].name.$t : "Admin";
-                
                 const dateObj = new Date(post.published.$t);
                 const dateStr = dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
 
@@ -439,6 +366,7 @@ window.initRelatedPosts = function() {
             container.innerHTML = `<div class="col-span-full text-center py-6 text-sm text-gray-400 italic">Gagal memuat artikel terkait.</div>`;
         });
     };
+
     // ================================================================
     // SPA ROUTING & LOADING (OPTIMIZED & LOGIKA HERO)
     // ================================================================
@@ -508,6 +436,7 @@ window.initRelatedPosts = function() {
                         if (window.myLeafletMap) { window.myLeafletMap.remove(); window.myLeafletMap = null; }
                         const cached = localStorage.getItem('CACHE_ID_DESA');
                         if (cached && window.renderGuestHeader) window.renderGuestHeader(JSON.parse(cached));
+                        setupMapLogic(); // Re-init map
                     }
                     if (typeof window.initHomepageLayout === 'function') window.initHomepageLayout();
                     if (typeof window.loadLandingNews === 'function') window.loadLandingNews();
@@ -552,7 +481,6 @@ window.initRelatedPosts = function() {
         if (url.startsWith(window.location.origin) && !url.includes('#') && link.target !== '_blank' && !url.includes('/p/login.html') && !isDashboard) {
             e.preventDefault();
             
-            // LOGIKA DETEKSI KELUAR DARI HOME
             if (cleanUrl !== homeUrl && cleanUrl !== homeUrl + '/index.html') {
                 sessionStorage.setItem("user_has_explored", "true");
             }
@@ -575,16 +503,9 @@ window.initRelatedPosts = function() {
     window.addEventListener('popstate', () => loadPage(window.location.href));
     window.addEventListener('pageshow', (event) => { updateHeaderInfo() });
 
-    const cachedData = localStorage.getItem('CACHE_ID_DESA');
-    if (cachedData) {
-        try {
-            const parsed = JSON.parse(cachedData);
-            if (document.getElementById('header-nama-desa')) { window.renderGuestHeader(parsed) } else { requestAnimationFrame(() => window.renderGuestHeader(parsed)) }
-        } catch (e) {}
-    }
-
     const onReady = () => {
-        initHomepageLayout(); updateHeaderInfo(); updateGuestMenuState();
+        initHomepageLayout(); updateHeaderInfo(); 
+        if (typeof updateGuestMenuState === 'function') updateGuestMenuState();
         if (window.initRelatedPosts) window.initRelatedPosts();
         if (window.loadLandingNews) window.loadLandingNews();
         fetchVillageProfilePublic(); attachEvents(); fixBloggerAccessibility();
