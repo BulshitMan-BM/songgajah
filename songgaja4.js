@@ -1,7 +1,3 @@
-// ================================================================
-// 1. LIBRARY & HELPER FUNCTIONS
-// ================================================================
-
 function loadLeafletLibrary() {
     return new Promise((resolve, reject) => {
         if (window.L) { resolve(); return; }
@@ -17,27 +13,9 @@ function loadLeafletLibrary() {
     })
 }
 
-(function() {
-    // --- HELPER DUPLIKAT (Perlu ada jika dipanggil local scope, tapi untuk Header pakai yg internal) ---
-    // Kita buat versi local scope untuk keperluan lain selain header (misal avatar user)
-    function processProfileImage(url, userName) {
-        if (!url || url.trim() === "" || url === "null") {
-            return `https://ui-avatars.com/api/?name=${encodeURIComponent(userName||'User')}&background=3b82f6&color=fff&bold=true&size=128`
-        }
-        if (url.startsWith('data:image') || url.includes('wsrv.nl') || url.includes('ui-avatars.com')) return url;
-        let fileId = null;
-        const match1 = url.match(/\/file\/d\/([^\/]+)/);
-        if (match1) fileId = match1[1];
-        else {
-            const match2 = url.match(/[?&]id=([^&]+)/);
-            if (match2) fileId = match2[1]
-        }
-        if (!fileId && !url.includes('/') && url.length > 20) fileId = url;
-        if (fileId) return `https://wsrv.nl/?url=https://drive.google.com/uc?id=${fileId}&w=90&h=90&fit=cover&a=center&output=webp&q=80`;
-        if (url.startsWith('http')) return `https://wsrv.nl/?url=${encodeURIComponent(url)}&w=90&h=90&fit=cover&output=webp`;
-        return url
-    }
 
+(function() {
+    // --- ACCESSIBILITY & UTILS ---
     function fixBloggerAccessibility() {
         const images = document.querySelectorAll('.post-body img');
         const pageTitle = document.title || "Gambar Dokumentasi";
@@ -60,86 +38,32 @@ function loadLeafletLibrary() {
             }
         })
     }
-
-    // --- MAP RENDERER (Bagian Header hanya memanggil ini jika perlu) ---
-    // Note: renderGuestHeader utama ada di Internal script untuk anti-blink
-    // Disini kita hanya handle logika Map nya saja jika dipanggil ulang
-    const setupMapLogic = function() {
-        const mapContainer = document.getElementById('homepage-map-osm');
-        if (mapContainer && !mapContainer.dataset.rendered) {
-            const observer = new IntersectionObserver((entries, obs) => {
-                entries.forEach(async entry => {
-                    if (entry.isIntersecting) {
-                        mapContainer.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100%;color:#888"><i class="fas fa-circle-notch fa-spin"></i> Memuat Peta...</div>';
-                        try {
-                            await loadLeafletLibrary();
-                            mapContainer.dataset.rendered = "true";
-                            mapContainer.innerHTML = "";
-                            if (window.myLeafletMap) { window.myLeafletMap.off(); window.myLeafletMap.remove(); window.myLeafletMap = null; }
-                            const LAT = -8.53754; const LNG = 118.20268;
-                            window.myLeafletMap = L.map('homepage-map-osm', { zoomControl: true, scrollWheelZoom: false, dragging: true, attributionControl: false }).setView([LAT, LNG], 16);
-                            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(window.myLeafletMap);
-                            L.marker([LAT, LNG]).addTo(window.myLeafletMap).bindPopup(`<div style="text-align:center;"><b>Desa Songgajah</b></div>`);
-                            obs.unobserve(entry.target);
-                        } catch (e) { mapContainer.innerHTML = "Gagal memuat peta."; }
-                    }
-                })
-            }, { rootMargin: "200px" });
-            observer.observe(mapContainer);
-        }
-    }
-
-    // --- AUTH & HEADER STATE ---
-    function updateHeaderInfo() {
-        let token = localStorage.getItem("access_token");
-        if (token) {
-            token = token.trim();
-            if (token.startsWith('"') && token.endsWith('"')) token = token.slice(1, -1)
-        }
-        const containerGuest = document.getElementById('nav-guest-container');
-        const containerUser = document.getElementById('nav-user-container');
-        const elName = document.getElementById('guest-nav-name');
-        const elRole = document.getElementById('guest-nav-role');
-        const elDropdownName = document.getElementById('guest-dropdown-name');
-        const elAvatar = document.getElementById('guest-nav-avatar');
-        const mobileGuest = document.querySelectorAll('.guest-only-mobile');
-        const mobileUser = document.querySelectorAll('.user-only-mobile');
-        
-        if (token && token !== "null") {
-            mobileGuest.forEach(el => el.classList.add('hidden'));
-            mobileUser.forEach(el => el.classList.remove('hidden'))
-        } else {
-            mobileGuest.forEach(el => el.classList.remove('hidden'));
-            mobileUser.forEach(el => el.classList.add('hidden'))
-        }
-        
-        if (token && token !== "null" && token !== "undefined") {
-            const userData = parseJwt(token);
-            if (userData) {
-                if (containerGuest) containerGuest.classList.add('hidden');
-                if (containerUser) { containerUser.classList.remove('hidden'); containerUser.classList.add('flex') }
-                const namaUser = userData.nama || userData.name || userData.sub || "Warga";
-                if (elName) elName.textContent = namaUser;
-                if (elDropdownName) elDropdownName.textContent = namaUser;
-                if (elRole) elRole.textContent = userData.role || "Warga";
-                if (elAvatar) {
-                    let rawFoto = userData.foto || userData.picture || userData.avatar || userData.image;
-                    elAvatar.src = processProfileImage(rawFoto, namaUser)
-                }
-            } else {
-                localStorage.removeItem("access_token");
-                showGuestMode();
+  window.handleGuestLogout = function() {
+        Swal.fire({ title: "Keluar?", text: "Akhiri sesi login?", icon: "question", showCancelButton: !0, confirmButtonColor: "#d33", confirmButtonText: "Ya, Keluar" }).then(async e => {
+            if (e.isConfirmed) {
+                Swal.fire({ title: "Proses keluar...", didOpen: () => Swal.showLoading() });
+                try { "function" == typeof window.apiCall && await apiCall({ action: "logout" }) } catch (e) {}
+                localStorage.removeItem("access_token"); localStorage.removeItem("refresh_token");
+                localStorage.removeItem("CLIENT_SIDE_NOTIF_CACHE"); localStorage.removeItem("CACHE_KAMUS_REFERENSI");
+                sessionStorage.clear(); location.replace("/p/login.html");
             }
-        } else {
-            showGuestMode();
-        }
-    }
+        })
+    };
 
-    function showGuestMode() {
-        const containerGuest = document.getElementById('nav-guest-container');
-        const containerUser = document.getElementById('nav-user-container');
-        if (containerGuest) containerGuest.classList.remove('hidden');
-        if (containerUser) containerUser.classList.add('hidden');
+    function updateGuestMenuState() {
+        const currentPath = window.location.pathname;
+        const desktopLinks = document.querySelectorAll('#guest-header nav > a');
+        desktopLinks.forEach(link => {
+            const href = link.getAttribute('href');
+            const isActive = (href === '/' && (currentPath === '/' || currentPath === '/index.html')) || (href === currentPath);
+            if (isActive) { link.classList.remove('text-gray-600'); link.classList.add('text-blue-600', 'bg-blue-50', 'font-bold', 'shadow-sm') } else { link.classList.add('text-gray-600'); link.classList.remove('text-blue-600', 'bg-blue-50', 'font-bold', 'shadow-sm') }
+        });
+        const mobileLinks = document.querySelectorAll('#mobile-menu-panel a');
+        mobileLinks.forEach(link => {
+            const href = link.getAttribute('href');
+            const isActive = (href === '/' && (currentPath === '/' || currentPath === '/index.html')) || (href === currentPath);
+            if (isActive) { link.classList.remove('text-gray-700'); link.classList.add('text-blue-600', 'bg-blue-50', 'font-bold'); const icon = link.querySelector('i'); if (icon) { icon.classList.remove('text-gray-400'); icon.classList.add('text-blue-600') } } else { link.classList.add('text-gray-700'); link.classList.remove('text-blue-600', 'bg-blue-50', 'font-bold'); const icon = link.querySelector('i'); if (icon) { icon.classList.add('text-gray-400'); icon.classList.remove('text-blue-600') } }
+        })
     }
     
     // --- HOME LAYOUT & NEWS ---
@@ -203,12 +127,15 @@ function loadLeafletLibrary() {
             entries.forEach(entry => {
                 const title = entry.title.$t;
                 const safeTitle = title.replace(/"/g, '"');
+                // Ambil Link
                 let link = "#";
                 const linkObj = entry.link.find(l => l.rel === 'alternate');
                 if(linkObj) link = linkObj.href;
 
                 const date = new Date(entry.published.$t).toLocaleDateString('id-ID', {
-                    year: 'numeric', month: 'long', day: 'numeric'
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
                 });
                 let img = 'https://placehold.co/600x400?text=No+Image'; 
                 
@@ -250,6 +177,7 @@ function loadLeafletLibrary() {
             });
             
             container.innerHTML = html;
+            
             if (typeof attachEvents === 'function') attachEvents();
             if (typeof fixBloggerAccessibility === 'function') fixBloggerAccessibility();
 
@@ -258,25 +186,11 @@ function loadLeafletLibrary() {
             container.innerHTML = `<div class="col-span-3 text-center py-10 text-red-600">Gagal memuat berita.</div>`;
         }
     };
-    
-    // --- FETCH VILLAGE PROFILE (UPDATE) ---
-    async function fetchVillageProfilePublic() {
-        // Cek Cache (Meski sudah dirender di internal, kita perlu update jika ada data baru)
-        try {
-            const res = await apiCall({ action: "get_identitas_desa" });
-            if (res.status || res.success) { 
-                const finalData = res.data || res; 
-                // Panggil fungsi global yang ada di internal script
-                if (window.renderGuestHeader) window.renderGuestHeader(finalData); 
-                localStorage.setItem('CACHE_ID_DESA', JSON.stringify(finalData));
-                setupMapLogic(); // Init map jika koordinat ada
-            }
-        } catch (e) { console.error("Gagal load profil desa:", e) }
-    }
-
-    // --- RELATED POSTS ---
-    window.initRelatedPosts = function() {
+      window.toggleGuestProfile = function(e) { e.stopPropagation(); const menu = document.getElementById('guest-nav-dropdown'); const arrow = document.getElementById('guest-nav-arrow'); if (menu) { menu.classList.toggle('show'); if (arrow) arrow.style.transform = menu.classList.contains('show') ? 'rotate(180deg)' : 'rotate(0deg)' } };
+    document.addEventListener('click', function(e) { const menu = document.getElementById('guest-nav-dropdown'); const btn = document.getElementById('nav-user-container'); if (menu && menu.classList.contains('show') && btn && !btn.contains(e.target)) { menu.classList.remove('show'); const arrow = document.getElementById('guest-nav-arrow'); if (arrow) arrow.style.transform = 'rotate(0deg)' } });
+window.initRelatedPosts = function() {
         if (window.relatedTimer) clearTimeout(window.relatedTimer);
+
         const bridge = document.getElementById("related-data-bridge");
         const wrapper = document.getElementById("related-posts-wrapper");
         const container = document.getElementById("related-posts-grid");
@@ -329,6 +243,7 @@ function loadLeafletLibrary() {
                 const title = post.title.$t;
                 const link = post.link.find(l => l.rel === 'alternate').href;
                 const author = (post.author && post.author.length > 0) ? post.author[0].name.$t : "Admin";
+                
                 const dateObj = new Date(post.published.$t);
                 const dateStr = dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
 
@@ -352,7 +267,7 @@ function loadLeafletLibrary() {
                              <div class="flex flex-col justify-center leading-none">
                                 <span class="text-xs text-blue-500 dark:text-blue-400 mb-1">${author}</span>
                                 <span class="text-[10px] font-medium text-gray-500 dark:text-gray-400">${dateStr}</span>
-                             </div>
+                            </div>
                         </div>
                     </div>
                 </div>`;
@@ -366,7 +281,6 @@ function loadLeafletLibrary() {
             container.innerHTML = `<div class="col-span-full text-center py-6 text-sm text-gray-400 italic">Gagal memuat artikel terkait.</div>`;
         });
     };
-
     // ================================================================
     // SPA ROUTING & LOADING (OPTIMIZED & LOGIKA HERO)
     // ================================================================
@@ -436,7 +350,6 @@ function loadLeafletLibrary() {
                         if (window.myLeafletMap) { window.myLeafletMap.remove(); window.myLeafletMap = null; }
                         const cached = localStorage.getItem('CACHE_ID_DESA');
                         if (cached && window.renderGuestHeader) window.renderGuestHeader(JSON.parse(cached));
-                        setupMapLogic(); // Re-init map
                     }
                     if (typeof window.initHomepageLayout === 'function') window.initHomepageLayout();
                     if (typeof window.loadLandingNews === 'function') window.loadLandingNews();
@@ -481,6 +394,7 @@ function loadLeafletLibrary() {
         if (url.startsWith(window.location.origin) && !url.includes('#') && link.target !== '_blank' && !url.includes('/p/login.html') && !isDashboard) {
             e.preventDefault();
             
+            // LOGIKA DETEKSI KELUAR DARI HOME
             if (cleanUrl !== homeUrl && cleanUrl !== homeUrl + '/index.html') {
                 sessionStorage.setItem("user_has_explored", "true");
             }
@@ -503,14 +417,10 @@ function loadLeafletLibrary() {
     window.addEventListener('popstate', () => loadPage(window.location.href));
     window.addEventListener('pageshow', (event) => { updateHeaderInfo() });
 
-    const onReady = () => {
-        initHomepageLayout(); updateHeaderInfo(); 
-        if (typeof updateGuestMenuState === 'function') updateGuestMenuState();
-        if (window.initRelatedPosts) window.initRelatedPosts();
-        if (window.loadLandingNews) window.loadLandingNews();
-        fetchVillageProfilePublic(); attachEvents(); fixBloggerAccessibility();
-        if(typeof runPageRouter === 'function') runPageRouter();
-    };
-
-    if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', onReady) } else { onReady() }
-})();
+    const cachedData = localStorage.getItem('CACHE_ID_DESA');
+    if (cachedData) {
+        try {
+            const parsed = JSON.parse(cachedData);
+            if (document.getElementById('header-nama-desa')) { window.renderGuestHeader(parsed) } else { requestAnimationFrame(() => window.renderGuestHeader(parsed)) }
+        } catch (e) {}
+    }
