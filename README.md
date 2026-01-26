@@ -1,2 +1,1 @@
-![JavaScript](https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhbvMv6UUZ31nJwWbhB5A3XHaDTk8kPY1_lCC35jt8W8yYvL9iMnHGWVYScaZIOiu5ohAQbYxi9aAvbQ5GwLiy6Elo51Jw45LU-v5p9pP-EiklhC6-6ehzZwEYLIhjIUKJ7FJIbE8lAsC_vCxnuCO7ZkqWjX6Cq4b1IrNgzjEG37tOKjKKy18-i-aLv/s1600/Letter%20B%20Logo%20%2840%20x%2040%20px%29%20%28100%20x%20100%20px%29%20%28500%20x%20500%20px%29%20%281%29.png)
-![CSS3](https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhbvMv6UUZ31nJwWbhB5A3XHaDTk8kPY1_lCC35jt8W8yYvL9iMnHGWVYScaZIOiu5ohAQbYxi9aAvbQ5GwLiy6Elo51Jw45LU-v5p9pP-EiklhC6-6ehzZwEYLIhjIUKJ7FJIbE8lAsC_vCxnuCO7ZkqWjX6Cq4b1IrNgzjEG37tOKjKKy18-i-aLv/s1600/Letter%20B%20Logo%20%2840%20x%2040%20px%29%20%28100%20x%20100%20px%29%20%28500%20x%20500%20px%29%20%281%29.png)
+
