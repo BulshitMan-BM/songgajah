@@ -554,20 +554,53 @@ window.initRelatedPosts = function() {
     // SPA ROUTING & LOADING (OPTIMIZED & LOGIKA HERO)
     // ================================================================
 
-    const UI = { bar: document.getElementById('nprogress'), content: '#main-content' };
+const UI = { bar: document.getElementById('nprogress'), content: '#main-content' };
 
-    const startLoading = () => {
-        const mainEl = document.querySelector(UI.content);
-        if (UI.bar) { UI.bar.style.transition = 'none'; UI.bar.style.width = '0%'; UI.bar.style.opacity = '1'; void UI.bar.offsetWidth; UI.bar.style.transition = 'width 0.3s ease'; UI.bar.style.width = '60%'; }
-        if (mainEl) { mainEl.style.pointerEvents = 'none'; mainEl.style.opacity = '0.5'; mainEl.style.filter = 'grayscale(100%)';}
-    };
+const startLoading = () => {
+    const mainEl = document.querySelector(UI.content);
+    if (UI.bar) { 
+        // 1. Reset ke 0
+        UI.bar.style.transition = 'none'; 
+        UI.bar.style.width = '0%'; 
+        UI.bar.style.opacity = '1'; 
+        
+        // 2. Force Reflow
+        void UI.bar.offsetWidth; 
+        
+        // 3. Animasi Trickle (Lambat seolah berpikir)
+        // Menggunakan bezier curve agar melambat saat mendekati akhir
+        UI.bar.style.transition = 'width 3s cubic-bezier(0.4, 0, 0.2, 1)'; 
+        
+        // 4. Targetkan ke 90% (tidak pernah 100% saat loading)
+        UI.bar.style.width = '90%'; 
+    }
+    if (mainEl) { 
+        mainEl.style.pointerEvents = 'none'; 
+        mainEl.style.opacity = '0.7'; // Jangan terlalu transparan agar tetap nyaman
+        // Hapus filter grayscale agar lebih modern
+        mainEl.style.filter = 'none'; 
+    }
+};
 
-    const endLoading = () => {
-        const mainEl = document.querySelector(UI.content);
-        if (UI.bar) { UI.bar.style.width = '100%'; setTimeout(() => { UI.bar.style.opacity = '0'; setTimeout(() => { UI.bar.style.width = '0%' }, 200) }, 200) }
-        if (mainEl) { mainEl.style.pointerEvents = 'auto'; mainEl.style.opacity = '1'; mainEl.style.filter = 'none';}
-    };
-
+const endLoading = () => {
+    const mainEl = document.querySelector(UI.content);
+    if (UI.bar) { 
+        // 1. Zip ke 100% dengan cepat saat selesai
+        UI.bar.style.transition = 'width 0.4s ease-out'; 
+        UI.bar.style.width = '100%'; 
+        
+        // 2. Hilangkan setelah selesai
+        setTimeout(() => { 
+            UI.bar.style.opacity = '0'; 
+            setTimeout(() => { UI.bar.style.width = '0%' }, 200) 
+        }, 500) // Delay sedikit agar user melihat bar penuh hijau/merah
+    }
+    if (mainEl) { 
+        mainEl.style.pointerEvents = 'auto'; 
+        mainEl.style.opacity = '1'; 
+        mainEl.style.filter = 'none';
+    }
+};
     const smoothScrollToTop = () => {
         const startY = window.scrollY;
         if (startY < 50) { window.scrollTo(0, 0); return; }
