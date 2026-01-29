@@ -131,51 +131,59 @@ function loadLeafletLibrary() {
         }
     };
 
-    // --- AUTH & HEADER STATE ---
-    function updateHeaderInfo() {
-        let token = localStorage.getItem("access_token");
-        if (token) {
-            token = token.trim();
-            if (token.startsWith('"') && token.endsWith('"')) token = token.slice(1, -1)
+  function updateHeaderInfo() {
+    // [UPDATE] Cek 'user_profile' string JSON, bukan token rahasia
+    let profileStr = localStorage.getItem("user_profile");
+    let userData = null;
+    
+    try {
+        if(profileStr) userData = JSON.parse(profileStr);
+    } catch(e) {}
+
+    const containerGuest = document.getElementById('nav-guest-container');
+    const containerUser = document.getElementById('nav-user-container');
+    const mobileGuest = document.querySelectorAll('.guest-only-mobile');
+    const mobileUser = document.querySelectorAll('.user-only-mobile');
+    
+    // [UPDATE] Tampilkan Header User
+    if (userData) {
+        // Tampilkan elemen user, sembunyikan guest
+        mobileGuest.forEach(el => el.classList.add('hidden'));
+        mobileUser.forEach(el => el.classList.remove('hidden'));
+        
+        if (containerGuest) containerGuest.classList.add('hidden');
+        if (containerUser) { 
+            containerUser.classList.remove('hidden'); 
+            containerUser.classList.add('flex');
         }
-        const containerGuest = document.getElementById('nav-guest-container');
-        const containerUser = document.getElementById('nav-user-container');
+        
+        // Render UI Navbar
         const elName = document.getElementById('guest-nav-name');
         const elRole = document.getElementById('guest-nav-role');
         const elDropdownName = document.getElementById('guest-dropdown-name');
         const elAvatar = document.getElementById('guest-nav-avatar');
-        const mobileGuest = document.querySelectorAll('.guest-only-mobile');
-        const mobileUser = document.querySelectorAll('.user-only-mobile');
         
-        if (token && token !== "null") {
-            mobileGuest.forEach(el => el.classList.add('hidden'));
-            mobileUser.forEach(el => el.classList.remove('hidden'))
-        } else {
-            mobileGuest.forEach(el => el.classList.remove('hidden'));
-            mobileUser.forEach(el => el.classList.add('hidden'))
-        }
+        const namaUser = userData.name || userData.nama || "Warga";
         
-        if (token && token !== "null" && token !== "undefined") {
-            const userData = parseJwt(token);
-            if (userData) {
-                if (containerGuest) containerGuest.classList.add('hidden');
-                if (containerUser) { containerUser.classList.remove('hidden'); containerUser.classList.add('flex') }
-                const namaUser = userData.nama || userData.name || userData.sub || "Warga";
-                if (elName) elName.textContent = namaUser;
-                if (elDropdownName) elDropdownName.textContent = namaUser;
-                if (elRole) elRole.textContent = userData.role || "Warga";
-                if (elAvatar) {
-                    let rawFoto = userData.foto || userData.picture || userData.avatar || userData.image;
-                    elAvatar.src = processProfileImage(rawFoto, namaUser)
-                }
+        if (elName) elName.textContent = namaUser;
+        if (elDropdownName) elDropdownName.textContent = namaUser;
+        if (elRole) elRole.textContent = userData.role || "Warga";
+        if (elAvatar) {
+            let rawFoto = userData.picture || userData.foto || userData.avatar;
+            // Gunakan helper processProfileImage yang sudah ada di file ini
+            if(typeof processProfileImage === 'function') {
+                 elAvatar.src = processProfileImage(rawFoto, namaUser);
             } else {
-                localStorage.removeItem("access_token");
-                showGuestMode();
+                 elAvatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(namaUser)}`;
             }
-        } else {
-            showGuestMode();
         }
+    } else {
+        // [UPDATE] Tampilkan Header Guest
+        mobileGuest.forEach(el => el.classList.remove('hidden'));
+        mobileUser.forEach(el => el.classList.add('hidden'));
+        showGuestMode();
     }
+}
 
     function showGuestMode() {
         const containerGuest = document.getElementById('nav-guest-container');
@@ -184,17 +192,34 @@ function loadLeafletLibrary() {
         if (containerUser) containerUser.classList.add('hidden');
     }
     
-    window.handleGuestLogout = function() {
-        Swal.fire({ title: "Keluar?", text: "Akhiri sesi login?", icon: "question", showCancelButton: !0, confirmButtonColor: "#d33", confirmButtonText: "Ya, Keluar" }).then(async e => {
-            if (e.isConfirmed) {
-                Swal.fire({ title: "Proses keluar...", didOpen: () => Swal.showLoading() });
-                try { "function" == typeof window.apiCall && await apiCall({ action: "logout" }) } catch (e) {}
-                localStorage.removeItem("access_token"); localStorage.removeItem("refresh_token");
-                localStorage.removeItem("CLIENT_SIDE_NOTIF_CACHE"); localStorage.removeItem("CACHE_KAMUS_REFERENSI");
-                sessionStorage.clear(); location.replace("/p/login.html");
-            }
-        })
-    };
+  window.handleGuestLogout = function() {
+    Swal.fire({ 
+        title: "Keluar?", 
+        text: "Akhiri sesi login?", 
+        icon: "question", 
+        showCancelButton: true, 
+        confirmButtonColor: "#d33", 
+        confirmButtonText: "Ya, Keluar" 
+    }).then(async e => {
+        if (e.isConfirmed) {
+            Swal.fire({ title: "Proses keluar...", didOpen: () => Swal.showLoading() });
+            
+            // [UPDATE] Panggil API Logout (Wajib untuk hapus Cookie HttpOnly)
+            try { 
+                if(typeof window.apiCall === 'function') { 
+                    await apiCall({ action: "logout" }); 
+                } 
+            } catch (e) {}
+
+            // Bersihkan LocalStorage (UI Cache)
+            localStorage.clear();
+            sessionStorage.clear();
+            
+            // Redirect ke Login
+            location.replace("/p/login.html");
+        }
+    })
+};
 // --- FUNGSI UPDATE MENU ACTIVE (FIX DROPDOWN & DARK MODE) ---
     function updateGuestMenuState() {
         const currentPath = window.location.pathname;
