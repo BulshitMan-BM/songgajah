@@ -348,103 +348,6 @@ function loadLeafletLibrary() {
         }
     };
     
-  // --- 1. Tambahkan Variabel Cache Global (Di luar fungsi) ---
-window.CACHED_NEWS_DATA = null; 
-
-// --- 2. Update Fungsi Load Berita ---
-window.loadLandingNews = async function() {
-    const container = document.getElementById('homepage-news-container');
-    if (!container) return;
-    
-    // --- CEK MEMORI: Apakah data sudah pernah diambil sebelumnya? ---
-    if (window.CACHED_NEWS_DATA) {
-        // JIKA ADA: Langsung pakai data lama (Instant Load)
-        renderNewsToHTML(container, window.CACHED_NEWS_DATA);
-        return; 
-    }
-
-    // --- JIKA BELUM ADA: Ambil dari Server ---
-    try {
-        const res = await fetch('/feeds/posts/default?alt=json&max-results=3');
-        const data = await res.json();
-        
-        // Simpan ke Memori agar nanti tidak perlu fetch lagi
-        window.CACHED_NEWS_DATA = data; 
-        
-        // Tampilkan
-        renderNewsToHTML(container, data);
-
-    } catch (e) {
-        console.error("Error loading news:", e);
-        container.innerHTML = `<div class="col-span-3 text-center py-10 text-red-600">Gagal memuat berita.</div>`;
-    }
-};
-// --- 3. Fungsi Render dengan Efek Muncul Dari Bawah ---
-function renderNewsToHTML(container, data) {
-    const entries = data.feed.entry || [];
-    
-    if (entries.length === 0) {
-        container.innerHTML = `<div class="col-span-3 text-center py-10 text-slate-600">Belum ada berita.</div>`;
-        return;
-    }
-    
-    let html = '';
-    
-    entries.forEach((entry, index) => {
-        const title = entry.title.$t;
-        const safeTitle = title.replace(/"/g, '&quot;');
-        
-        let link = "#";
-        const linkObj = entry.link.find(l => l.rel === 'alternate');
-        if(linkObj) link = linkObj.href;
-
-        const date = new Date(entry.published.$t).toLocaleDateString('id-ID', {
-            year: 'numeric', month: 'long', day: 'numeric'
-        });
-        
-        let img = 'https://placehold.co/600x400?text=No+Image'; 
-        if (entry.media$thumbnail) {
-            img = entry.media$thumbnail.url.replace(/\/s[0-9]+.*?\//, "/w600-h340-p-k-no-nu-rw/");
-        } 
-        else if (entry.content && /src="([^"]+)"/.test(entry.content.$t)) {
-            img = entry.content.$t.match(/src="([^"]+)"/)[1];
-        }
-
-        let snippet = '';
-        if (entry.summary) {
-            snippet = entry.summary.$t.substring(0, 100);
-        } else if (entry.content) {
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = entry.content.$t;
-            snippet = tempDiv.textContent.substring(0, 100);
-        }
-
-        html += `
-        <article class="flex flex-col bg-white dark:bg-slate-800 rounded-2xl overflow-hidden hover:shadow-md hover:-translate-y-1 transition-all duration-300 border border-slate-100 dark:border-slate-700/50 animate-fade-up" style="animation-delay: ${index * 100}ms">
-            <a href="${link}" aria-label="Baca artikel: ${safeTitle}" class="relative h-48 overflow-hidden group aspect-video">
-                <img src="${img}" alt="Thumbnail ${safeTitle}" loading="lazy" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
-                <div class="absolute top-3 left-3 bg-blue-600 text-white text-[10px] font-bold px-2 py-1 rounded-md shadow-sm">TERBARU</div>
-            </a>
-            <div class="flex flex-col flex-1 p-5">
-                <div class="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400 mb-3">
-                    <i class="far fa-calendar-alt" aria-hidden="true"></i> ${date}
-                </div>
-                <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-2 line-clamp-2 leading-snug hover:text-blue-600 transition">
-                    <a href="${link}" aria-label="Baca selengkapnya tentang ${safeTitle}">${title}</a>
-                </h3>
-                <p class="text-sm text-slate-700 dark:text-slate-300 line-clamp-3 mb-4 flex-grow">${snippet}...</p>
-                <a href="${link}" aria-label="Baca selengkapnya: ${safeTitle}" class="inline-flex items-center text-sm font-bold text-blue-700 hover:text-blue-800 mt-auto">
-                    Baca Selengkapnya <i class="fas fa-arrow-right ml-2 text-xs transition-transform group-hover:translate-x-1" aria-hidden="true"></i>
-                </a>
-            </div>
-        </article>`;
-    });
-    
-    container.innerHTML = html;
-    
-    if (typeof attachEvents === 'function') attachEvents();
-    if (typeof fixBloggerAccessibility === 'function') fixBloggerAccessibility();
-}
     // --- FETCH VILLAGE PROFILE ---
     async function fetchVillageProfilePublic() {
         const cached = localStorage.getItem('CACHE_ID_DESA');
@@ -608,7 +511,7 @@ const UI={bar:document.getElementById("nprogress"),content:"#main-content"};cons
                         if (cached && window.renderGuestHeader) window.renderGuestHeader(JSON.parse(cached));
                     }
                     if (typeof window.initHomepageLayout === 'function') window.initHomepageLayout();
-                    if (typeof window.loadLandingNews === 'function') window.loadLandingNews();
+                    // if (typeof window.loadLandingNews === 'function') window.loadLandingNews(); // SUDAH DIHAPUS KARENA SERVER SIDE
                     if (typeof fetchVillageProfilePublic === 'function') fetchVillageProfilePublic();
                 }, 10);
             }
@@ -731,7 +634,7 @@ const attachEvents=()=>{document.querySelectorAll("a").forEach(e=>{e.removeEvent
 		initGuestDarkMode();
         initHomepageLayout(); updateHeaderInfo(); updateGuestMenuState();
         if (window.initRelatedPosts) window.initRelatedPosts();
-        if (window.loadLandingNews) window.loadLandingNews();
+        // window.loadLandingNews(); // SUDAH DIHAPUS (Server Side Render)
         fetchVillageProfilePublic(); attachEvents(); fixBloggerAccessibility();
         if(typeof runPageRouter === 'function') runPageRouter();
     };
