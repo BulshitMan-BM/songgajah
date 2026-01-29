@@ -110,7 +110,7 @@ async function checkAuth() {
     const path = location.pathname;
     const isLoginPage = path.includes(CONFIG.LOGIN_PATH);
     
-    // 1. Cek User Profile di LocalStorage (Untuk UI saja)
+    // 1. Cek User Profile di LocalStorage (Untuk UI saja - Optimistic UI)
     const profileStr = localStorage.getItem("user_profile");
     
     if (!profileStr) {
@@ -118,31 +118,40 @@ async function checkAuth() {
         return;
     }
 
-    // 2. Render UI Awal dari Cache Lokal
+    // 2. Render UI Awal dari Cache Lokal (Agar tidak blank saat loading)
     try {
         const user = JSON.parse(profileStr);
         initUserData(user);
     } catch (e) {}
 
-    // 3. Validasi Session ke Server (Browser otomatis kirim Cookie)
+    // 3. Validasi Session ke Server (Browser otomatis kirim Cookie HttpOnly)
     try {
         const res = await apiCall({ action: "get_user_profile" });
 
         if (res && res.status === true) {
             if (isLoginPage) {
+                // Jika user membuka halaman login tapi sesinya masih aktif -> Lempar ke Dashboard
                 window.location.replace(CONFIG.DASHBOARD_PATH);
             } else {
                 document.body.style.display = 'block';
-                // Update data terbaru ke localStorage
+                
+                // Update data terbaru ke localStorage (Penting untuk loadAdminNotifications)
                 localStorage.setItem("user_profile", JSON.stringify(res.data));
                 initUserData(res.data);
+
+                // [PERBAIKAN UTAMA: TRIGGER NOTIFIKASI DISINI] 
+                // Cek apakah user adalah Admin, jika ya, panggil notifikasi segera
+                if (res.data.role === 'Admin' && typeof window.loadAdminNotifications === 'function') {
+                    window.loadAdminNotifications();
+                }
             }
         } else {
-            // Jika server menolak (Cookie invalid/expired), logout
+            // Jika server menolak (Cookie invalid/expired), logout paksa
             if (!isLoginPage) forceLogout();
         }
     } catch (e) {
-        // Error koneksi, biarkan dulu (jangan logout paksa kecuali yakin)
+        // Error koneksi (misal offline), jangan logout user dulu, biarkan UI cache tampil
+        console.error("Gagal memvalidasi sesi:", e);
     }
 }
 function initUserData(decodedToken) {
@@ -6252,30 +6261,42 @@ function renderNotificationUI(data) {
     }
 }
 
-// 2. Fungsi Utama (Load Cache -> Fetch Server)
 window.loadAdminNotifications = async function() {
-    const token = localStorage.getItem("access_token");
-    if (!token) return;
+    // [PERBAIKAN] Gunakan user_profile, jangan access_token mentah
+    // Karena saat refresh halaman, access_token mungkin tidak ada, tapi cookie sesi tetap valid.
+    const profileStr = localStorage.getItem("user_profile");
+    if (!profileStr) return;
     
-    const user = parseJwt(token);
-    // Cek apakah User adalah Admin
+    let user;
+    try {
+        user = JSON.parse(profileStr);
+    } catch (e) {
+        return;
+    }
+
+    // Cek Role (Hanya Admin yang boleh request notifikasi)
     if (!user || user.role !== 'Admin') return;
 
-   const localData = localStorage.getItem(LOCAL_NOTIF_KEY);
+    // Cek Cache Lokal (Agar tidak spam server)
+    const localData = localStorage.getItem(LOCAL_NOTIF_KEY);
     if (localData) {
         try { renderNotificationUI(JSON.parse(localData)); } catch (e) {}
     }
     
+    // Panggil API (Otomatis menggunakan Cookie HttpOnly)
     try {
         const res = await apiCall({ action: "get_notifikasi_admin" });
         if (res.status && res.data) {
             const serverDataStr = JSON.stringify(res.data);
+            // Update UI jika data berubah
             if (serverDataStr !== localData) {
                 localStorage.setItem(LOCAL_NOTIF_KEY, serverDataStr);
                 renderNotificationUI(res.data);
             }
         }
-    } catch (e) {}
+    } catch (e) {
+        console.error("Gagal memuat notifikasi:", e);
+    }
 };
 window.bukaNotifikasi = function(url) {
     // 1. Tutup Dropdown Notifikasi
