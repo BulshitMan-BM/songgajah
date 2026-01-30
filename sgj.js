@@ -372,16 +372,19 @@ window.updateSidebarActiveState = function() {
 function initUIEvents() {
     // 1. Breadcrumb Home Logic
     const homeLink = document.getElementById('breadcrumbHome');
-    const token = localStorage.getItem("access_token");
+    const isUserLoggedIn = localStorage.getItem("user_profile"); 
+
     if (homeLink) {
-        if (token) {
+        if (isUserLoggedIn) {
             homeLink.href = CONFIG.DASHBOARD_PATH;
-            homeLink.textContent = "Dashboard";
+            homeLink.innerHTML = '<i class="fas fa-columns"></i> Dashboard';
+            
+            // Hapus listener lama dulu biar ga numpuk
             homeLink.removeEventListener('click', handleLinkClick);
             homeLink.addEventListener('click', handleLinkClick);
         } else {
             homeLink.href = "/";
-            homeLink.textContent = "Home";
+            homeLink.innerHTML = '<i class="fas fa-home"></i> Home';
         }
     }
 
