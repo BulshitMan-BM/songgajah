@@ -377,7 +377,7 @@ function initUIEvents() {
     if (homeLink) {
         if (isUserLoggedIn) {
             homeLink.href = CONFIG.DASHBOARD_PATH;
-            homeLink.innerHTML = '<i class="fas fa-columns"></i> Dashboard';
+            homeLink.innerHTML = 'Dashboard';
             
             // Hapus listener lama dulu biar ga numpuk
             homeLink.removeEventListener('click', handleLinkClick);
