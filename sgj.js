@@ -484,29 +484,25 @@ function initUIEvents() {
         });
         profToggle.dataset.bound = "true";
     }
-    
-    // 6. Logout Button
-    bindOnce('btnLogout', 'click', function(e) {
+const btnLogout = document.getElementById('btnLogout');
+if (btnLogout) {
+    // Kita gunakan .onclick agar menimpa event listener sebelumnya (mencegah double trigger)
+    btnLogout.onclick = function(e) {
         e.preventDefault();
-        Swal.fire({
-            title: 'Keluar?',
-            text: "Sesi Anda akan diakhiri.",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            confirmButtonText: 'Ya, Keluar',
-            cancelButtonText: 'Batal',
-            showLoaderOnConfirm: true,
-            allowOutsideClick: () => !Swal.isLoading(),
-            preConfirm: async () => {
-                try {
-                    if(typeof window.apiCall === 'function') await apiCall({ action: "logout" });
-                    return true; 
-                } catch (error) {
-                    return true;
-                }
-            }
-        }).then((result) => {
+        e.stopPropagation();
+        
+        // Panggil fungsi logout terpusat yang ada di gajah.js
+        if (typeof window.handleGuestLogout === 'function') {
+            window.handleGuestLogout();
+        } else {
+            // Fallback jika gajah.js belum termuat
+            console.warn("Fungsi handleGuestLogout tidak ditemukan, menjalankan force logout.");
+            if (typeof forceLogout === 'function') forceLogout();
+        }
+    };
+    // Tandai bahwa elemen ini sudah di-bind
+    btnLogout.dataset.bound = "true";
+}.then((result) => {
             if (result.isConfirmed) {
                 if(typeof window.handleGuestLogout === 'function') {
                      window.handleGuestLogout(); // Pakai fungsi logout pusat jika ada
