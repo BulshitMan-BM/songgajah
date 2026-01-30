@@ -485,15 +485,60 @@ function initUIEvents() {
         profToggle.dataset.bound = "true";
     }
 bindOnce('btnLogout', 'click', function(e) {
-    e.preventDefault();
-    if (typeof window.handleGuestLogout === 'function') {
-        window.handleGuestLogout();
-    } else {
-        localStorage.clear();
-        sessionStorage.clear();
-        window.location.replace(CONFIG.LOGIN_PATH);
-    }
-});
+        e.preventDefault();
+        
+        Swal.fire({
+            title: 'Keluar?',
+            text: "Sesi Anda akan diakhiri.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            confirmButtonText: 'Ya, Keluar',
+            cancelButtonText: 'Batal'
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                // 1. BLOCK UI SEPENUHNYA (Supaya Dashboard tidak bisa diakses)
+                Swal.fire({ 
+                    title: 'Memutus Sesi...', 
+                    text: 'Menghapus jejak keamanan...',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    showConfirmButton: false,
+                    didOpen: () => Swal.showLoading() 
+                });
+
+                try {
+                    // 2. TUNGGU WORKER MERESPON (PENTING!)
+                    // Saat baris ini selesai, berarti Browser SUDAH menerima header
+                    // untuk menghapus Cookie HttpOnly. Aman.
+                    if(typeof window.apiCall === 'function') { 
+                        // Kita beri timeout 5 detik. Jika server mati/lemot, jangan bikin user nyangkut selamanya.
+                        const timeout = new Promise((_, reject) => 
+                            setTimeout(() => reject(new Error('Request Timeout')), 5000)
+                        );
+                        
+                        // Kirim request logout
+                        await Promise.race([
+                            apiCall({ action: "logout" }), 
+                            timeout
+                        ]);
+                    } 
+                } catch (error) {
+                    // Jika gagal (internet putus), kita tetap paksa logout lokal
+                    console.warn("Logout server tidak sempurna, membersihkan sisi klien...", error);
+                }
+
+                // 3. HAPUS DATA LOKAL (Baru dilakukan setelah server merespon/timeout)
+                localStorage.clear();
+                sessionStorage.clear();
+
+                // 4. MENCEGAH TOMBOL BACK (Gunakan replace)
+                // Dashboard tidak akan muncul lagi karena localStorage sudah kosong
+                // dan Cookie sudah dihapus oleh respon API di langkah no 2.
+                window.location.replace(CONFIG.LOGIN_PATH || '/p/login.html');
+            }
+        });
+    });
 document.addEventListener("click", e => {
         // 1. Dropdown Tambah Penduduk (Utama)
         const dc = document.getElementById("dropdownTambahContainer");
