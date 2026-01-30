@@ -484,6 +484,8 @@ function initUIEvents() {
         });
         profToggle.dataset.bound = "true";
     }
+    
+// Ganti blok bindOnce btnLogout Anda dengan ini:
 const btnLogout = document.getElementById('btnLogout');
 if (btnLogout) {
     // Kita gunakan .onclick agar menimpa event listener sebelumnya (mencegah double trigger)
@@ -502,18 +504,7 @@ if (btnLogout) {
     };
     // Tandai bahwa elemen ini sudah di-bind
     btnLogout.dataset.bound = "true";
-}.then((result) => {
-            if (result.isConfirmed) {
-                if(typeof window.handleGuestLogout === 'function') {
-                     window.handleGuestLogout(); // Pakai fungsi logout pusat jika ada
-                } else {
-                    localStorage.removeItem("access_token");
-                    localStorage.removeItem("refresh_token");
-                    window.location.replace(CONFIG.LOGIN_PATH);
-                }
-            }
-        });
-    });
+}
 document.addEventListener("click", e => {
         // 1. Dropdown Tambah Penduduk (Utama)
         const dc = document.getElementById("dropdownTambahContainer");
@@ -5732,8 +5723,6 @@ async function showInputNewEmail() {
     });
 
   if (newEmail) {
-        // HAPUS validasi (newEmail === oldEmail) di sini.
-        // Biarkan backend yang menolak jika email sama.
         processRequestEmailChange(newEmail);
     }
 }
@@ -6258,8 +6247,6 @@ function renderNotificationUI(data) {
 }
 
 window.loadAdminNotifications = async function() {
-    // [PERBAIKAN] Gunakan user_profile, jangan access_token mentah
-    // Karena saat refresh halaman, access_token mungkin tidak ada, tapi cookie sesi tetap valid.
     const profileStr = localStorage.getItem("user_profile");
     if (!profileStr) return;
     
@@ -6415,4 +6402,3 @@ setTimeout(() => {
         }
     }, 60000);
 });
-
