@@ -484,27 +484,16 @@ function initUIEvents() {
         });
         profToggle.dataset.bound = "true";
     }
-    
-// Ganti blok bindOnce btnLogout Anda dengan ini:
-const btnLogout = document.getElementById('btnLogout');
-if (btnLogout) {
-    // Kita gunakan .onclick agar menimpa event listener sebelumnya (mencegah double trigger)
-    btnLogout.onclick = function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        // Panggil fungsi logout terpusat yang ada di gajah.js
-        if (typeof window.handleGuestLogout === 'function') {
-            window.handleGuestLogout();
-        } else {
-            // Fallback jika gajah.js belum termuat
-            console.warn("Fungsi handleGuestLogout tidak ditemukan, menjalankan force logout.");
-            if (typeof forceLogout === 'function') forceLogout();
-        }
-    };
-    // Tandai bahwa elemen ini sudah di-bind
-    btnLogout.dataset.bound = "true";
-}
+bindOnce('btnLogout', 'click', function(e) {
+    e.preventDefault();
+    if (typeof window.handleGuestLogout === 'function') {
+        window.handleGuestLogout();
+    } else {
+        localStorage.clear();
+        sessionStorage.clear();
+        window.location.replace(CONFIG.LOGIN_PATH);
+    }
+});
 document.addEventListener("click", e => {
         // 1. Dropdown Tambah Penduduk (Utama)
         const dc = document.getElementById("dropdownTambahContainer");
