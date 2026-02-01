@@ -987,7 +987,9 @@ function renderPendudukTable(list) {
             return;
         }
 
-        const isAdmin = (parseJwt(localStorage.getItem("access_token"))?.role === 'Admin');
+const cachedProfile = localStorage.getItem("user_profile");
+const user = cachedProfile ? JSON.parse(cachedProfile) : {};
+const isAdmin = (user.role === 'Admin');
         let noUrut = ((STATE.PENDUDUK.page - 1) * STATE.PENDUDUK.limit) + 1;
         const totalRows = list.length;
         
