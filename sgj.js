@@ -53,7 +53,32 @@ document.addEventListener("DOMContentLoaded", function() {
         progressBar: document.getElementById('nprogress'),
         errorTemplate: document.getElementById('error-404-content')
     };
-
+// ==========================================
+    // FUNGSI ERROR PAGE (YANG HILANG)
+    // ==========================================
+    window.renderErrorPage = function() {
+        const content = document.querySelector(UI.content);
+        if (content) {
+            content.innerHTML = `
+                <div class="flex flex-col items-center justify-center min-h-[60vh] text-center p-6 animate-fade-in">
+                    <div class="text-9xl font-bold text-gray-200 dark:text-gray-700 select-none">404</div>
+                    <div class="absolute mt-[-50px]">
+                        <div class="bg-red-100 dark:bg-red-900/30 p-4 rounded-full mb-4 mx-auto w-20 h-20 flex items-center justify-center">
+                            <i class="fas fa-exclamation-triangle text-3xl text-red-500 dark:text-red-400"></i>
+                        </div>
+                        <h2 class="text-2xl font-bold text-gray-800 dark:text-white mb-2">Halaman Tidak Ditemukan / Error</h2>
+                        <p class="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto">
+                            Maaf, halaman yang Anda cari tidak tersedia atau terjadi kesalahan saat memuat data.
+                        </p>
+                        <a href="/" class="inline-flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all shadow-lg hover:shadow-xl">
+                            <i class="fas fa-arrow-left"></i>
+                            <span>Kembali ke Beranda</span>
+                        </a>
+                    </div>
+                </div>
+            `;
+        }
+    };
     // ==========================================
     // 3. UTILITY FUNCTIONS
     // ==========================================
