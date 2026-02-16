@@ -133,49 +133,69 @@ function setVal(t,e){const n=document.getElementById(t);n&&(n.value=e!=null?e.to
 window.bacaKamus=function(t,e){if(!STATE.KAMUS[t])return e;const n=String(e).trim();return STATE.KAMUS[t][n]||e};
 async function checkAuth() {
     const path = location.pathname;
-    const isLoginPage = path.includes(CONFIG.LOGIN_PATH);
     
-    // 1. Cek User Profile di LocalStorage (Untuk UI saja - Optimistic UI)
+    // 1. Tentukan Halaman yang WAJIB Login (Protected Routes)
+    // Tambahkan halaman lain jika perlu
+    const protectedRoutes = [
+        "/p/dashboard.html",
+        "/p/profile.html",
+        "/p/pengaturan.html",
+        "/p/penduduk.html",
+        "/p/keluarga.html",
+        "/p/master-surat.html",
+        "/p/cetak-surat.html",
+        "/p/pemerintah.html", // Jika ini halaman admin
+        "/p/daftar-laporan-pengaduan.html" // Halaman Admin Laporan
+    ];
+
+    // Cek apakah URL saat ini adalah halaman yang dilindungi
+    const isProtectedRoute = protectedRoutes.some(route => path.includes(route));
+    const isLoginPage = path.includes(CONFIG.LOGIN_PATH);
+
+    // 2. Cek User Profile di LocalStorage
     const profileStr = localStorage.getItem("user_profile");
     
+    // SKENARIO 1: Belum Login
     if (!profileStr) {
-        if (!isLoginPage) window.location.replace(CONFIG.LOGIN_PATH);
+        // HANYA redirect jika user mencoba masuk halaman terlarang (Admin)
+        if (isProtectedRoute) {
+            window.location.replace(CONFIG.LOGIN_PATH);
+        }
+        // Jika di halaman Home/Berita, biarkan saja (JANGAN REDIRECT)
         return;
     }
 
-    // 2. Render UI Awal dari Cache Lokal (Agar tidak blank saat loading)
+    // SKENARIO 2: Sudah Login (Ada profileStr)
+    // Render UI Awal dari Cache Lokal
     try {
         const user = JSON.parse(profileStr);
         initUserData(user);
     } catch (e) {}
 
-    // 3. Validasi Session ke Server (Browser otomatis kirim Cookie HttpOnly)
+    // Validasi Session ke Server
     try {
         const res = await apiCall({ action: "get_user_profile" });
 
         if (res && res.status === true) {
             if (isLoginPage) {
-                // Jika user membuka halaman login tapi sesinya masih aktif -> Lempar ke Dashboard
+                // Jika sudah login tapi buka halaman login -> Lempar ke Dashboard
                 window.location.replace(CONFIG.DASHBOARD_PATH);
             } else {
                 document.body.style.display = 'block';
                 
-                // Update data terbaru ke localStorage (Penting untuk loadAdminNotifications)
                 localStorage.setItem("user_profile", JSON.stringify(res.data));
                 initUserData(res.data);
 
-                // [PERBAIKAN UTAMA: TRIGGER NOTIFIKASI DISINI] 
-                // Cek apakah user adalah Admin, jika ya, panggil notifikasi segera
                 if (res.data.role === 'Admin' && typeof window.loadAdminNotifications === 'function') {
                     window.loadAdminNotifications();
                 }
             }
         } else {
-            // Jika server menolak (Cookie invalid/expired), logout paksa
-            if (!isLoginPage) forceLogout();
+            // Jika session server mati, tapi user ada di halaman admin -> Logout
+            if (isProtectedRoute) forceLogout();
+            // Jika user di halaman publik, biarkan saja (anggap guest)
         }
     } catch (e) {
-        // Error koneksi (misal offline), jangan logout user dulu, biarkan UI cache tampil
         console.error("Gagal memvalidasi sesi:", e);
     }
 }
